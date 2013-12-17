@@ -52,11 +52,14 @@ Another challenge is conditional statements like if and switch. These statements
 
 \subsubsection{Delay Backannotation Flow}
 The Chisel backannotator marks delay information to each node in the intermediate-level Chisel graph as follows:
-\begin{enumerate}
-	\item Generates all possible timing paths
-	
-A timing path is given as a list of Chisel nodes. The start point of 
 
+{\bf (1) Finds all possible timing paths}
+	
+The timing analysis tool finds and analyzes all of the timing paths in the design. The data is launched at the start point of a timing path by a clock edge, propagated through combinational logic in the path, and captured at the endpoint of the path by another clock edge. The startpoint of a path is a clock pin of a sequential element or and an input port of the design. The endpoint is a data input pin of a sequential logic or an output port of the design. 
+
+The Chisel backannotator uses timing reports of timing paths to annotate Chisel graphs. It finds all possible timing paths in a Chisel graph to be reported. A timing path is given as a list of Chisel nodes where the start node represents either a register or an input port, the end node represents a register or an output port, and the intermediate nodes represent combinational logics. 
+
+\begin{enumerate}
 	\item Generate a tcl script using the timing paths
 	\item Executes Design Compiler with a generated tcl script 
 	\item Read timing reports from Design Compiler 
@@ -70,6 +73,7 @@ The automatic pipelining tool first creates a legal placement of pipeline regist
 
 \subsubsection{Pipeline Legality}
 For a pipeline register placement to be legal, it must satisfy the following three conditions:
+
 {\bf (1)} Every combinational logic node has all input signal with the same stage number.  
 
 {\bf (2)} The stage number of every combinational logic node's output signal is greater than or equal to the maximum of its input signal stage numbers. 
