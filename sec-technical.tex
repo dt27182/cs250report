@@ -48,7 +48,7 @@ The second challenge is missing signals in logic synthesis. Missing signals are 
 
 An approach to this problem is calculate the difference of the arrival times of two non-missing signals in a timing path, and assigning the average value to missing signals. For example, suppose we have a path starting from X through T1, T2, and T3 to Z where T1, T2, and T3 are missing signals, and the arrival times of X and Y are 0.1 and 0.4, respectively. The difference of the arrival times is 0.3.  Each missing signal is assigned 0.1 as a delay since there are three missing signals. This is a naive way to estimate delays for missing signals, but we believe this is a beginning step for delay estimation.
 
-Another challenge is conditional statements like if and switch. These statements are converted into logic gates in logic synthesis which are not visible in Chisel graphs. Currently, we cannot directly backannotate their delays to corresponding nodes in the Chisel graphs. Instead, there is a separate variable for those kinds of delays in reset and enable signals of registers. The Chisel backannotator uses this variable to annotate the delays of conditional statements
+Another challenge is conditional statements like if and switch. These statements are converted into logic gates in logic synthesis which are not visible in Chisel graphs. Currently, we cannot directly backannotate their delays to corresponding nodes in the Chisel graphs. Instead, there is a separate variable for those kinds of delays in reset and enable signals of registers. The Chisel backannotator uses this variable to annotate the delays of conditional statements.
 
 \subsubsection{Delay Backannotation Flow}
 The Chisel backannotator marks delay information to each node in the intermediate-level Chisel graph as follows:
@@ -59,14 +59,15 @@ The timing analysis tool finds and analyzes all of the timing paths in the desig
 
 The Chisel backannotator uses timing reports of timing paths to annotate Chisel graphs. It finds all possible timing paths in a Chisel graph to be reported. A timing path is given as a list of Chisel nodes where the start node represents either a register or an input port, the end node represents a register or an output port, and the intermediate nodes represent combinational logics. 
 
-\begin{enumerate}
-	\item Generate a tcl script using the timing paths
-	\item Executes Design Compiler with a generated tcl script 
-	\item Read timing reports from Design Compiler 
-	\item Annotate the arrival time of each node
-    \item Calculate or estimate each node’s delay
-    \item Calculate the critical path delay
-\end{enumerate}
+{\bf (2) Generates a tcl script}
+
+{\bf (3) Executes Synopsys tools}
+
+{\bf (4) Reads timing reports}
+
+{\bf (5) Annotates Chisel graphs}
+
+{\bf (6) Calculates the critical path delay}
 
 \subsection{Automatic Pipeline Register Placement}
 The automatic pipelining tool first creates a legal placement of pipeline registers based on the stage numbers of the user annotated nodes and then uses simulated annealing based on the delay data provided by the backannotation to find a close-to-optimal placement of the pipeline registers. 
@@ -91,18 +92,19 @@ Due to reasons that will become apparent from the algorithm discussed below, in 
 The automatic pipelining tool produces the initial legal pipeline placement by propagating stage numbers out from the user annotated Chisel nodes to their inputs and consumers in a pseudo breadth-first-search (BFS) manner. When two propagation frontiers with different stage numbers meet at the same node, propagation down that path stops and pipeline registers are inserted at that node.
 
 We must maintain the following conditions during the pipeline stage propagation process:
+
 {\bf (1)} Adjust the propagation rates of each propagation frontier so that two different propagation frontiers never meet at a combinational logic node and always meets at a wire node mentioned in \ref{wiresection}, because it does not make sense to split a combinational logic node in half with a pipeline register.
 
 {\bf (2)}  The stage number propagated to a combinational logic node with multiple inputs must be the maximum of the stage numbers of all of its inputs. If this was not maintained, we would have some inputs of the combinational logic node have a greater stage number than the stage number of the output of the combinational node, which violates 2nd condition of Pipeline Legality. This also means that we cannot propagate to a Chisel node with multiple inputs from the input side until all of its inputs have been propagated to.
 
-{\bf (3)} The stage number propagated to a combinational logic node with multiple consumers must be the minimum of the stage numbers of all of its consumers. If this was not maintained, we would have some consumers of the combinational logic node have a smaller stage number than the stage number of the output of the combinational node, which cause that consumer to violate the 3rd condition of Pipeline Legality. This also means that we cannot propagate to a Chisel node with multiple consumers from the consumer side until all of its cosumers have been propagated to.
+{\bf (3)} The stage number propagated to a combinational logic node with multiple consumers must be the minimum of the stage numbers of all of its consumers. If this was not maintained, we would have some consumers of the combinational logic node have a smaller stage number than the stage number of the output of the combinational node, which cause that consumer to violate the 3rd condition of Pipeline Legality. This also means that we cannot propagate to a Chisel node with multiple consumers from the consumer side until all of its consumers have been propagated to.
 
 Due to conditions (2) and (3), if not all of the data sources and data sinks are user annotated, the stage propagation process may never complete.
-
 \subsubsection{Optimizing Register Placement}
 Once the tool finds an initial legal pipeline register placement, it uses simulated annealing to optimize the placement of the pipeline registers based on the delay data obtained from the Chisel backannotation.
 
 {\bf Simulated Annealing Algorithm}.
+
 We want a fast method of finding a close-to-optimal pipeline register placement without getting stuck at local minimums. Simulated annealing is a gradient decent like algorithm that iteratively improves upon the current solution by randomly generating neighbor solutions from the current solution and then picking the neighboring solution that decreases the cost function the most as the next solution. Unlike gradient decent, simulated annealing occasionally picks neighbor solutions that are worse than the current solution. This allows the algorithm to avoid getting stuck at local minimums. The algorithm uses the following formula to decide if it should choose a neighbor solution as the next solution:
 
 R(0, 1) is a random number in the interval [0, 1]
@@ -110,10 +112,29 @@ At higher values of T (temperature), the algorithm is more likely to accept bad 
 
 This cooling schedule forces the algorithm to try many bad solutions in the very early iterations and then focus on trying good solutions for the majority of the remaining iterations. There are many possible cooling schedules, but this one has worked well for us.
 
+We terminate the algorithm when the temperature falls below 0.01 or if the iteration count exceeds 3000. We’ve found the critical path length has generally converged by those two limits in the designs we evaluated.
 The cost function used for our problem is the maximum combinational path length in the design and we obtain neighbor solutions from the current solution by moving Chisel nodes across pipeline boundaries in a way that mains a legal pipeline register placement
 
-{\bf Finding Longest Combinational Path}.
+{\bf Generating Neighbor Solutions}.
 
-{\bf Moving Pipeline Boundaries}.
+We must maintain a legal pipeline register placement as we generate new pipeline register placements from the current pipeline register placement. To accomplish this, we look at the current pipeline register placement and choose eligible combinational logic nodes to move across pipeline stage boundaries. A combinational logic nodes is eligible if it meets the following conditions:
+
+{\bf (1)} 
+The node is not an architectural register read point, architectural register write point, input node, or output node. We choose to not allow the automatic pipelining tool to move these nodes because doing so could have large unforeseen performance implications. For example, if we are pipelining a RISC processor, moving the write point of the PC register to later stages will cause branches to be resolved later in the pipeline and thus cause a larger branch mispredict penalty.
+
+{\bf (2)}  
+The node outputs directly to a pipeline register. In this case, it is safe to move the node forward across the pipeline boundary by removing the pipeline register from the output of the node and adding pipeline registers to all the inputs of the node and still maintain a legal pipeline register placement. 
+
+{\bf (3)} 
+The node has all of its inputs driven directly by a pipeline register. In this case, it is safe to move the node backward across the pipeline boundary by removing the pipeline registers from the inputs of the node and adding a pipeline register to the output of the node and still maintain a legal pipeline register placement.
+
+See figure x for an illustration of why violating (2) and (3) would result in an illegal pipeline register placement.
+
+{\bf Evaluating Cost Function}.
+
+We calculate the longest combinational path in the design by finding the propagation delay to each combinational logic node from an architectural register or pipeline register recursively. The propagation delay to a node is the maximum of (sum of propagation delay to input and delay across input) over all of its inputs. The propagation delay to the output wire of architectural registers and pipeline registers is considered zero (we do not have the means to properly backannotate clk-to-q delays currently).  Thus, the longest combinational path is the maximum of the above calculated propagation delay over all nodes in the Chisel graph.
+
+When we generate a new pipeline register placement from the current pipeline register placement, we do not need to recalculate the propagation delay to every node. Instead we store the propagation delays of all the Chisel graph nodes for the current pipeline register placement in a map of Chisel node to propagation delay and incrementally update the map as we modify the pipeline register placement. When we move a combinational logic node forward across a pipeline boundary, we only have to recalculate the propagation delay for the nodes that are on the consumer tree of the node that was moved. When we move a combinational logic node backward across a pipeline boundary, we only have to recalculate the propagation delay for the nodes that were previously on the consumer tree of the node that was moved. This allows us to evaluate the cost of new pipeline register placements quickly, even for large designs.
 
 \subsection{Tool Flow}
+
