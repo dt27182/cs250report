@@ -1,1 +1,12 @@
-\section{Overall Tool Flow}
+\begin{figure*}
+	\centering
+    \resizebox{1.5\columnwidth}{!}{\includegraphics{figures/toolflow}}
+%    \resizebox{\columnwidth}{!}{\includegraphics{figures/toolflow}}
+    \caption{The overall tool flow}
+	\label{toolflow}
+\end{figure*}
+
+\section{Tool Flow}
+Figure \ref{toolflow} shows the flow of the entire systems. As the first step, we executes the Chisel Verilog Backend which translates a Chisel design into an RTL by the Chisel Verilog Backend. The RTL will be used by Synopsys tools to generate timing reports. This is preparation for the second backend execution.
+
+The second backend execution produces a pipelined design from the original Chisel design. We define a customized Chisel backend to include the delay backannotator and the automatic pipelining tool and then execute it. In the second backend execution, the delay backannotator calls Synopsys tools to produce timing reports. It then annotates the intermediate Chisel graph, which is explained in Section \ref{challenges}, by reading the timing reports. The automatic pipelining tool uses the annotated graph to locate pipeline registers at the optimal places, producing an automatically pipelined design.
