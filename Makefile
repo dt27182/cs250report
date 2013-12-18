@@ -17,5 +17,5 @@ $(PAPER).pdf: $(TEX) $(BIB) $(FIGS) $(addsuffix .pdf, $(basename $(EPS)))
 	epstopdf $<
 
 clean:
-	rm -f *.aux *.bbl *.blg *.log *.out $(PAPER).pdf *~
+	rm -f *.aux *.bbl *.blg *.log *.out $(PAPER).pdf *~ $(addprefix figures/, $(addsuffix .pdf, $(basename $(EPS))))
 
