@@ -1,5 +1,16 @@
-\section{Results}
 \subsection{Chisel Backannotation}
 \subsection{Automatic Pipeline Register Placement}
+We first want to evaluate the automatic pipeline placement independently from the Chisel Backannotation. Thus, we first run a very simple finite state machine, a simple RISC processor, and the Sodor processor through the automatic pipeline tools using mock delay numbers.  The metric of interest is the ratio of the maximum combinational path delay after optimization to unpipelined combinational path delay/number of stages. This is a useful metric because the unpipelined combinational path delay/number of stages tells us the best possible maximum path delay the automatic pipelining tool can achieve given the specified number of stages. Insert Table here:
+
+As seen in the Figure x, the automatic pipeline tool achieves close to optimal placement on a very simple finite state machine, relatively good placement on a simple RISC processor, and the worst placement on the Sodor processor. This trend is explained by the fact that the automatic pipelining tool is more constrained on where it can place the pipeline registers on the more complex designs. Several things constrain the placement of the pipeline registers:
+
+{\bf (1)} 
+As discussed previously, the tool is not allowed to move IO nodes across pipeline stage boundaries. In more complex designs, there are more IO nodes and they prevent not only themselves, but also their inputs and consumers from being freely placed by the automatic pipelining tool. In the case of input nodes, its consumer nodes must be placed at a stage {\tt >=} the stage of the input node. In the case of output nodes, its input nodes must be placed at a stage {\tt <=} the stage of the output node.
+
+{\bf (2)}  
+The automatic pipelining tool cannot put pipeline registers in the middle of large black box modules such as caches. Thus, if the delay across the black box module is the critical path delay, the tool cannot reduce the critical path delay any further. The simple finite state machine does not use any black box modules while the more complex designs do.
+
+{\bf (3)} 
+The automatic pipelining tool cannot put pipeline registers between the input and output muxes of the read and write ports of array memories. In some designs, these read and write ports of array memories is a significant portion of the unpipelined critical path delay and thus the tool is unable to reduce the critical path delay below the propagation delay through the read and write ports of the array memories. The simple finite state machine does not use any array memories while the more complex designs each have an array memory for the register file.
 \subsection{Combined Tool Results}
 
