@@ -1,3 +1,4 @@
+\section{Results}
 \subsection{Chisel Backannotation}
 \subsection{Automatic Pipeline Register Placement}
 We first want to evaluate the automatic pipeline placement independently from the Chisel Backannotation. Thus, we first run a very simple finite state machine, a simple RISC processor, and the Sodor processor through the automatic pipeline tools using mock delay numbers.  The metric of interest is the ratio of the maximum combinational path delay after optimization to unpipelined combinational path delay/number of stages. This is a useful metric because the unpipelined combinational path delay/number of stages tells us the best possible maximum path delay the automatic pipelining tool can achieve given the specified number of stages. Insert Table here:
