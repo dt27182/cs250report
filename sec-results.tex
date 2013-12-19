@@ -35,7 +35,7 @@ To be worse, the fact that a design has a normalized delay equal to 1 does not m
 		\hline
 	\end{tabular}
 	}
-	\caption{{\bf Pipelined Design Delay Data} The delays are unit less they are arbitrary units used for the sake of independently testing the automatic pipeline placement.}
+	\caption{{\bf Pipelined Design Delay Data} The delays are obtained from analyzing the Chisel node graph pre synthesis. The delays are unitless because they are obtained from arbitrary mock delays assigned for the sake of independently testing the automatic pipeline placement tool}
 	\label{fig:mock_delays}
 \end{table}
 
@@ -46,7 +46,7 @@ To be worse, the fact that a design has a normalized delay equal to 1 does not m
 %\label{fig:mock_delays}
 %\end{figure}
 
-We first want to evaluate the automatic pipeline placement independently from the Chisel Backannotation. Thus, we first run a very simple finite state machine, a simple RISC processor, and the Sodor processor through the automatic pipeline tools using mock delay numbers. Every chisel combinational logic node is give a mock delay of 5 and all other chisel nodes are given mock delays of 0. For each example, we can obtain the best possible pipelined combinational path delay by dividing the maximum unpipelined combinational path delay by the number of pipeline stages. Then we can compare the actual pipelined combinational path delay against this best possible pipelined combinational path delay to get an idea of how well the automatic register placement is doing. We should not expect the tool to match the best possible pipelined combinational path delay because combinational logic nodes are not arbitrarily divisible and do not have uniform delays.
+We first want to evaluate the automatic pipeline placement independently from the Chisel Backannotation. Thus, we first run a very simple finite state machine, a simple RISC processor, and the Sodor processor through the automatic pipeline tools using mock delay numbers. Every Chisel Op node is give a mock delay of 5 and all other Chisel nodes are given mock delays of 0. Delay data is obtained by analysing the final Chisel graph after the automatic pipelining tool finishes placing the pipeline registers. For each example, we can obtain the best possible pipelined combinational path delay by dividing the maximum unpipelined combinational path delay by the number of pipeline stages. Then we can compare the actual pipelined combinational path delay against this best possible pipelined combinational path delay to get an idea of how well the automatic register placement is doing. We should not expect the tool to match the best possible pipelined combinational path delay because combinational logic nodes are not arbitrarily divisible and do not have uniform delays.
 
 As seen in Table \ref{fig:mock_delays}, the automatic pipeline tool achieves relatively good  placement on a very simple finite state machine and slightly worse placement on the simple RISC processor ad the Sodor processor. This trend is explained by the fact that the automatic pipelining tool is more constrained on where it can place the pipeline registers on the more complex designs. Several things constrain the placement of the pipeline registers:
 
@@ -80,7 +80,7 @@ Given these constraints, the automatic pipeline placement does a reasonable job 
 		Actual Pipelined Delay / Best Possible Pipelined Delay & $1.15$ & $2$ \\
 		\hline
 	\end{tabular} }
-	\caption{{\bf 2 Stage Pipelined Design Delay Data} The delays are in units of ns.}
+	\caption{{\bf 2 Stage Pipelined Design Delay Data} The delays are in units of ns and are obtained from post-synthesis data.}
 	\label{fig:comb_delays2}
 \end{table}
 
@@ -102,7 +102,7 @@ Given these constraints, the automatic pipeline placement does a reasonable job 
 		Actual Pipelined Delay / Best Possible Pipelined Delay & $1.26$ & $3$ \\
 		\hline
 	\end{tabular} }
-	\caption{{\bf 3 Stage Pipelined Design Delay Data} The delays are in units of ns.}
+	\caption{{\bf 3 Stage Pipelined Design Delay Data} The delays are in units of ns and are obtained from post-synthesis data.}
 	\label{fig:comb_delays3}	
 \end{table}
 
@@ -124,7 +124,7 @@ Given these constraints, the automatic pipeline placement does a reasonable job 
 		Actual Pipelined Delay / Best Possible Pipelined Delay & $1.68$ & $4$ \\
 		\hline
 	\end{tabular} }
-	\caption{{\bf 4 Stage Pipelined Design Delay Data} The delays are in units of ns.}
+	\caption{{\bf 4 Stage Pipelined Design Delay Data} The delays are in units of ns and are obtained from post-synthesis data.}
 	\label{fig:comb_delays4}	
 \end{table}
 
@@ -147,7 +147,7 @@ Given these constraints, the automatic pipeline placement does a reasonable job 
 %\label{fig:comb_delays4}
 %\end{figure}
 
-We now evaluate the performance of the automatic pipeline performance when using real delay data obtained from Chisel backannotation with the same metrics as the above section. We do not use the Sodor processor in the evaluation because we are unable to obtain delay data from them as they contain very large unsynthesizable scratchpad memories. 
+We now evaluate the performance of the automatic pipeline performance when using real delay data obtained from Chisel backannotation with the same metrics as the above section. The delay data is obtained by running the simple finite state machine and the simple RISC processor through the full combined tool flow involving the backannotation, the automatic pipelining, and finally synthesis. Synthesis is run with gate level optimizations turned off because we want to try to preserve a one to one mapping between the gate netlist and the Chisel node graph. We do not use the Sodor processors in the evaluation because we are unable to obtain delay data from them as they contain very large unsynthesizable scratchpad memories. We do not use post-place and route data because they introduce extra noise into the delay data due to how non-predictable layout patterns affect wire delays.
 
 Table \ref{fig:comb_delays2}, Table \ref{fig:comb_delays3}, and Table \ref{fig:comb_delays4} show that the automatic pipelining tool performs very well on 2, 3, and 4 stage versions of the simple finite state machine, with actual pipelined combinational path delays being very close to best possible pipelined combinational delays.  This shows that given a sufficiently unconstrained design, automatic pipeline placement is able to do a good job when integrated with the real delay data provided by Chisel backannotation.
 
