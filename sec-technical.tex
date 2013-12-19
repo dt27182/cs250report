@@ -1,5 +1,5 @@
 \section{Technical Approach}
-Automatically finding a close-to-optimal placement of the pipeline registers takes consists of two major parts. First, we must back annotate the Chisel node graph with delay information obtained through the VLSI tools. Once we have the delay data for each Chisel node, we then use simulated annealing to place the pipeline registers based on the delay data obtained with the back annotation tool.
+% Automatically finding a close-to-optimal placement of the pipeline registers consists of two major processes. First, we backannotate Chisel graph nodes with delay information obtained afelaborationter logic synthesis. Next, we use simulated annealing to place the pipeline registers based on the delay data obtained by the backannotation.
 
 \subsection{Chisel Backannotation}
 \begin{table*}
@@ -7,7 +7,7 @@ Automatically finding a close-to-optimal placement of the pipeline registers tak
 	\begin{tabular} 
 		{ |c | c| }
 		\hline
-		\textbf{Origianl backend elaborate flow} & \textbf{Backannotation backend elaborate flow} \\
+		\textbf{Origianl backend elaboration flow} & \textbf{Backend elaboration flow for backannotation} \\
 		\hline \hline
 		\multicolumn{2}{| c |}{{\bf -} Set the top module} \\
 		\multicolumn{2}{| c |}{{\bf -} Generate muxes} \\
@@ -35,17 +35,17 @@ Automatically finding a close-to-optimal placement of the pipeline registers tak
 		{\bf -} \emph{Assign signal names} & \\
 		\hline
 	\end{tabular}
-	\caption{The original backend elaborate flow and the backannotation backend elaborate flow. Note that signal names are assigned to the intermediate-level Chisel graph in the backannotation backend while they are given during Verilog translation in the original backend.}
+	\caption{Comparison between the original backend elaboration flow and the backend elaboration flow for backannotation. Note that signal names are assigned to intermediate-level Chisel graph nodes while they are given during Verilog translation in the original backend.}
 	\label{fig:backend_flow}
 \end{table*}
 
 \subsubsection{Challenges and Approaches} 
 \label{sec:challenges}
-There are several challenges for Chisel backannotation. The first is naming problems, which occurs when the destination nodes have different names. Signal names are given during Verilog translation, a process after the elaborate process and this is highly affected by graph topology. However, other tools like the automatic pipelining tool are expected to manipulate a high-level Chisel graph which goes through only part of the elaborate process, while the Chisel backannotator wants to use a low-level Chisel graph which is elaborated by the backend. The two graphs look different from each other, which makes it difficult to match signal names between them. Thus, we define the intermediate-level Chisel graph so that both the backannotator and the tools are satisfied.
+There are several challenges for Chisel backannotation. The first is naming problems, which occurs when the destination nodes have different names. Signal names are given during Verilog translation, a process after the elaboration process and this is highly affected by graph topology. However, other tools like the automatic pipelining tool are expected to manipulate a high-level Chisel graph which goes through only part of the elaboration process, while the Chisel backannotator wants to use a low-level Chisel graph which is elaborated by the backend. The two graphs look different from each other, which makes it difficult to match signal names between them. Thus, we define the intermediate-level Chisel graph so that both the backannotator and the tools are satisfied.
 
-Table \ref{fig:backend_flow} compares the backend elaborate flow for backannotation with the original elaborate flow. \textbf{Remove type nodes} and \textbf{Trace nodes} are processes tools want to avoid because they change the graph topology undesirably. Thus, we apply processes necessary for backannotation to an initial graph prior to \textbf{Remove type nodes} and \textbf{Trace nodes}, and then obtain an intermediate-level Chisel graph. Signal names are assigned to intermediate graph nodes, and backannotation is performed. Tools like the automatic pipelining tool manipulate this backannotated graph.
+Table \ref{fig:backend_flow} compares the backend elaboration flow for backannotation with the original elaboration flow. \textbf{Remove type nodes} and \textbf{Trace nodes} are processes tools want to avoid because they change the graph topology undesirably. Thus, we apply processes necessary for backannotation to an initial graph prior to \textbf{Remove type nodes} and \textbf{Trace nodes}, and then obtain an intermediate-level Chisel graph. Signal names are assigned to intermediate graph nodes, and backannotation is performed. Tools like the automatic pipelining tool manipulate this backannotated graph.
 
-The second challenge is missing signals during logic synthesis. Missing signals are inevitable although we give signal preserving commands to Synopsys tools. This occurs when Chisel graph nodes are mapped to generic logic blocks by Synopsys tools. These generic logic blocks are replaced by technology-dependent logic cells, and signals in the logics are replaced at the same time.
+The second challenge is missing signals during logic synthesis. Missing signals are inevitable although we give signal preserving commands to Synopsys tools. This occurs when Chisel graph nodes are mapped to generic logic blocks by Synopsys tools. These generic logic blocks are replaced by technology-dependent logic cells, and signals of the logics are replaced by arbitrary nets during the compilation of Synopsys tools.
 
 An approach to this problem is calculate the arrival time difference between two non-missing signals in a timing path, and assigning the average value of the difference to missing signals. For example, suppose we have a path from X through T1, T2, and T3 to Y where T1, T2, and T3 are missing signals, and the arrival times of X and Y are 0.1 and 0.5, respectively. The arrival time difference between X and Y is 0.4, and the delays for T1, T2, T3, and Y are estimated as 0.1.
 
@@ -76,7 +76,7 @@ However, it is impossible to know the arrival times of missing signals because t
 
 {\bf (5) Annotates the Chisel graph with the delays}
 
-The Chisel backannotator annotates the intermediate Chisel graph with signal delays from Step {\bf (4)}. It is possible because signal names are given to intermediate Chisel graphs.
+The Chisel backannotator annotates the intermediate Chisel graph with delays obtained from Step {\bf (4)}.
 
 {\bf (6) Calculates the critical path delay}
 
