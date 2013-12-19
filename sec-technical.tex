@@ -90,9 +90,9 @@ For a pipeline register placement to be legal, it must satisfy the following thr
 
 {\bf (1)} Every combinational logic node has all input signal with the same stage number.  
 
-{\bf (2)} The stage number of every combinational logic node's output signal is greater than or equal to the maximum of its input signal stage numbers. 
+{\bf (2)} The stage number of every combinational logic node's output signal is equal to the shared stage number of its input signals.
 
-{\bf (3)} There are two ways to determine the stage number of a node. One way is to trace through the node's inputs to a pipeline register and set the stage number of the node equal to the stage number of that pipeline register. Another way is to trace through the node’s consumers to a pipeline register and set the stage number of the node equal to the stage number of that pipeline register {\tt >=}  1. For all nodes in the graph, the stage number of the node obtained through both methods must be the same.
+{\bf (3)} There are two ways to determine the stage number of a node. One way is to trace through the node's inputs to a pipeline register and set the stage number of the node equal to the stage number of that pipeline register. Another way is to trace through the node’s consumers to a pipeline register and set the stage number of the node equal to the stage number of that pipeline register {\tt -}  1. For all nodes in the graph, the stage number of the node obtained through both methods must be the same.
 
 \subsubsection{Wire Node Insertion}
 \label{wiresection}
@@ -140,10 +140,12 @@ The cost function used for our problem is the maximum combinational path length 
 
 {\bf Generating Neighbor Solutions}.
 
-We must maintain a legal pipeline register placement as we generate new pipeline register placements from the current pipeline register placement. To accomplish this, we look at the current pipeline register placement and choose eligible combinational logic nodes to move across pipeline stage boundaries. A combinational logic nodes is eligible if it meets the following conditions:
+We must maintain a legal pipeline register placement as we generate new pipeline register placements from the current pipeline register placement. To accomplish this, we look at the current pipeline register placement and choose eligible combinational logic nodes to move across pipeline stage boundaries. A combinational logic nodes is eligible if it meets the following condition:
 
 {\bf (1)} 
 The node is not an architectural register read point, architectural register write point, input node, or output node. We choose to not allow the automatic pipelining tool to move these nodes because doing so could have large unforeseen performance implications. For example, if we are pipelining a RISC processor, moving the write point of the PC register to later stages will cause branches to be resolved later in the pipeline and thus cause a larger branch mispredict penalty.
+
+And one of the following conditions:
 
 {\bf (2)}  
 The node outputs directly to a pipeline register. In this case, it is safe to move the node forward across the pipeline boundary by removing the pipeline register from the output of the node and adding pipeline registers to all the inputs of the node and still maintain a legal pipeline register placement. 
@@ -151,12 +153,11 @@ The node outputs directly to a pipeline register. In this case, it is safe to mo
 {\bf (3)} 
 The node has all of its inputs driven directly by a pipeline register. In this case, it is safe to move the node backward across the pipeline boundary by removing the pipeline registers from the inputs of the node and adding a pipeline register to the output of the node and still maintain a legal pipeline register placement.
 
-See figure x for an illustration of why violating (2) and (3) would result in an illegal pipeline register placement.
 
 {\bf Evaluating Cost Function}.
 
-We calculate the longest combinational path in the design by finding the propagation delay to each combinational logic node from an architectural register or pipeline register recursively. The propagation delay to a node is the maximum of (sum of propagation delay to input and delay across input) over all of its inputs. The propagation delay to the output wire of architectural registers and pipeline registers is considered zero (we do not have the means to properly backannotate clk-to-q delays currently).  Thus, the longest combinational path is the maximum of the above calculated propagation delay over all nodes in the Chisel graph.
+We calculate the longest combinational path in the design by finding the propagation delay to each combinational logic node from an architectural register or pipeline register recursively. The propagation delay to a node is the maximum of (sum of propagation delay to input and delay across input) over all of its inputs. The propagation delay to the output wire of architectural registers and pipeline registers is the clk-to-q delay.  Thus, the longest combinational path is the maximum of the above calculated propagation delay over all nodes in the Chisel graph.
 
-When we generate a new pipeline register placement from the current pipeline register placement, we do not need to recalculate the propagation delay to every node. Instead we store the propagation delays of all the Chisel graph nodes for the current pipeline register placement in a map of Chisel node to propagation delay and incrementally update the map as we modify the pipeline register placement. When we move a combinational logic node forward across a pipeline boundary, we only have to recalculate the propagation delay for the nodes that are on the consumer tree of the node that was moved. When we move a combinational logic node backward across a pipeline boundary, we only have to recalculate the propagation delay for the nodes that were previously on the consumer tree of the node that was moved. This allows us to evaluate the cost of new pipeline register placements quickly, even for large designs.
+When we generate a new pipeline register placement from the current pipeline register placement, we do not need to recalculate the propagation delay to every node. Instead we store the propagation delays of all the Chisel graph nodes for the current pipeline register placement in a map of Chisel node to propagation delay and incrementally update the map as we modify the pipeline register placement. When we move a combinational logic node forward across a pipeline boundary, we only have to recalculate the propagation delay for the nodes that are newly on the consumer tree of the node that was moved. When we move a combinational logic node backward across a pipeline boundary, we only have to recalculate the propagation delay for the nodes that were previously on the consumer tree of the node that was moved. This allows us to evaluate the cost of new pipeline register placements quickly, even for large designs.
 
 
