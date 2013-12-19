@@ -35,52 +35,52 @@
 		{\bf -} \emph{Assign signal names} & \\
 		\hline
 	\end{tabular}
-	\caption{Comparison between the original backend elaboration flow and the backend elaboration flow for backannotation. Note that signal names are assigned to intermediate-level Chisel graph nodes while they are given during Verilog translation in the original backend.}
+	\caption{Comparison between the original backend elaboration flow and the backend elaboration flow for backannotation. Note that signal names are assigned to intermediate-level Chisel graph nodes in the backannotation backend while they are given during Verilog translation in the original backend.}
 	\label{fig:backend_flow}
 \end{table*}
 
 \subsubsection{Challenges and Approaches} 
 \label{sec:challenges}
-There are several challenges for Chisel backannotation. The first is naming problems, which occurs when the destination nodes have different names. Signal names are given during Verilog translation, a process after the elaboration process and this is highly affected by graph topology. However, other tools like the automatic pipelining tool are expected to manipulate a high-level Chisel graph which goes through only part of the elaboration process, while the Chisel backannotator wants to use a low-level Chisel graph which is elaborated by the backend. The two graphs look different from each other, which makes it difficult to match signal names between them. Thus, we define the intermediate-level Chisel graph so that both the backannotator and the tools are satisfied.
+There are several challenges for Chisel backannotation. The first is naming problems, which occurs when the signal names of the destination graphs in the second backend execution are different from those of the source graph after first backend execution. Signal names are given during Verilog translation, a process after the elaboration process and this is highly affected by graph topology. However, optimization tools like the automatic pipelining tool are expected to manipulate a high-level Chisel graph which goes through only part of the backend elaboration process, while the Chisel backannotator wants to use a low-level Chisel graph, a graph after the elaboration process. The two graphs look different from each other, which makes it difficult to match signal names between them. Thus, we define the intermediate-level Chisel graph so that both the backannotator and the other tools are satisfied.
 
-Table \ref{fig:backend_flow} compares the backend elaboration flow for backannotation with the original elaboration flow. \textbf{Remove type nodes} and \textbf{Trace nodes} are processes tools want to avoid because they change the graph topology undesirably. Thus, we apply processes necessary for backannotation to an initial graph prior to \textbf{Remove type nodes} and \textbf{Trace nodes}, and then obtain an intermediate-level Chisel graph. Signal names are assigned to intermediate graph nodes, and backannotation is performed. Tools like the automatic pipelining tool manipulate this backannotated graph.
+Table \ref{fig:backend_flow} compares the backend elaboration flow for backannotation with the original backend elaboration flow. \textbf{Remove type nodes} and \textbf{Trace nodes} are processes tools want to avoid because they change the graph topology undesirably. Thus, we apply processes necessary for backannotation to an initial graph prior to \textbf{Remove type nodes} and \textbf{Trace nodes}, and then obtain an intermediate-level Chisel graph. Signal names are assigned to intermediate graph nodes, and then backannotation is performed. Tools like the automatic pipelining tool manipulate this backannotated graph.
 
-The second challenge is missing signals during logic synthesis. Missing signals are inevitable although we give signal preserving commands to Synopsys tools. This occurs when Chisel graph nodes are mapped to generic logic blocks by Synopsys tools. These generic logic blocks are replaced by technology-dependent logic cells, and signals of the logics are replaced by arbitrary nets during the compilation of Synopsys tools.
+The second challenge is missing signals during logic synthesis. Missing signals are inevitable although we give signal preserving commands to Synopsys tools. This occurs when Chisel graph nodes are mapped to generic logic blocks by Synopsys tools. These generic logic blocks are replaced by technology-dependent logic cells, and signals of the logics are replaced by arbitrary nets during the Synopsys tool compilation.
 
-An approach to this problem is calculate the arrival time difference between two non-missing signals in a timing path, and assigning the average value of the difference to missing signals. For example, suppose we have a path from X through T1, T2, and T3 to Y where T1, T2, and T3 are missing signals, and the arrival times of X and Y are 0.1 and 0.5, respectively. The arrival time difference between X and Y is 0.4, and the delays for T1, T2, T3, and Y are estimated as 0.1.
+An approach to this problem is to assign arithmetic means between the arrival times of two non-missing signals to missing signals. For example, suppose we have a path from X through T1, T2, and T3 to Y where T1, T2, and T3 are missing signals, and the arrival times of X and Y are 0.1 and 0.5, respectively. Then the estimated arrival times of T1, T2, T3 are 0.2, 0.3, 0.4, respectively.
 
-Another challenge is conditional statements like \emph{if} and \emph{switch}. These statements are converted into logic gates during logic synthesis which are not visible in Chisel graphs. Currently, we cannot directly backannotate corresponding nodes in the Chisel graphs with their delays. Instead, there is a separate variable in reset and enable signals of registers. The Chisel backannotator uses this variable to mark the delays of conditional statements.
+Another challenge is conditional statements like \emph{when} and \emph{switch} in Chisel designs. These statements are converted into logic gates during logic synthesis which are not visible in Chisel graphs. Currently, we cannot directly backannotate corresponding nodes in the Chisel graphs with these delays. Instead, there is a separate variable in the reset and enable input nodes of registers, and the Chisel backannotator uses this variable to mark the delays of conditional statements.
 
 \subsubsection{Delay Backannotation Flow}
-The Chisel backannotator annotates intermediate-level Chisel graph nodes with delay information as follows:
+The delay backannotator annotates intermediate-level Chisel graph nodes with delay information as follows:
 
 {\bf (1) Finds all possible timing paths}
 	
 The timing analysis tool finds and analyzes all of the timing paths in the design. The data is launched at the start point of a timing path by a clock edge, propagated through combinational logic in the path, and captured at the endpoint of the path by another clock edge. The startpoint of a path is a clock pin of a sequential element or and an input port of the design. The endpoint is a data input pin of a sequential logic or an output port of the design. 
 
-The Chisel backannotator uses timing path reports to annotate Chisel graphs. It finds all possible timing paths in a Chisel graph to be reported. A timing path is given as a list of Chisel nodes where the start node represents either a register or an input port, the end node represents a register or an output port, and the intermediate nodes represent combinational logics. 
+The delay backannotator uses timing path reports to annotate Chisel graphs. It finds all possible timing paths in a Chisel graph to be reported. A timing path is given as a list of Chisel nodes where the start node represents either a register or an input port, the end node represents a register or an output port, and the intermediate nodes represent combinational logics. 
 
 {\bf (2) Generates a tcl script}
 
-A tcl script consists of a set of Synopsys tool commands. For backannotation, it is necessary to generate a customized tcl script to obtain design specific timing path reports. A tcl script generated by the Chisel backannotator contains commands to report timing information of the paths found in Step {\bf (1)}, as well as basic commands to specify libraries, read and compile designs, and write the results. 
+A tcl script consists of a set of Synopsys tool commands. For backannotation, it is necessary to generate a customized tcl script to obtain design specific timing path reports. A tcl script generated by the delay backannotator contains commands to report timing information of the paths found in Step {\bf (1)}, as well as basic commands to specify libraries, read and compile designs, and write the results. 
 
 {\bf (3) Executes Synopsys tools}
 
-In this step, the Chisel backannotator executes Sysnopsys tools with the tcl script generated by Step {\bf (2)}, which produces timing path reports. Note that the RTL used by Synopsys tools is produced in advance by the first run of the Chisel Verilog backend.
+In this step, the delay backannotator executes Sysnopsys tools with the tcl script generated by Step {\bf (2)}, which produces timing path reports. Note that the RTL used by Synopsys tools is produced in advance after the first run of the Chisel Verilog backend.
 
 {\bf (4) Reads the timing report and calculates the delays of Chisel nodes}
 
-The timing report produced by Step {\bf (3)} contains 1) the output signals of Chisel nodes (including missing signals) consisting of a timing paths, and 2) the arrival times of nets in the path. The output signal of a Chisel node corresponds to a net in the gate-level netlist, and its arrival time is obtained from the timing report. Thus, the node delay is calculated as the arrival time difference between its output signal and the output signal of its input Chisel graph node.
+The timing report produced by Step {\bf (3)} contains 1) the output signals of Chisel nodes (including missing signals) consisting of a timing paths, and 2) the arrival times of nets in the path. The output signal of a Chisel node corresponds to a net in the gate-level netlist, and its arrival time is obtained from the timing report. Thus, the node delay is calculated as the arrival time difference between its output signal and the output signal of its input node.
 
-However, it is impossible to know the arrival times of missing signals because they do not have a corresponding net in the gate netlist. In this step, the chisel backannotator estimates the arrival times of missing signals using the method in Section \ref{sec:challenges}. It also calculates the delays of conditional statements as the arrival time difference between a register and its reset or enable signal.
+However, it is impossible to know the arrival times of missing signals because they do not have a corresponding net in the gate netlist. In this step, the delay backannotator estimates the arrival times of missing signals using the method in Section \ref{sec:challenges}. It also calculates the delays of conditional statements as the arrival time difference between a register and its reset or enable signal.
 
 {\bf (5) Annotates the Chisel graph with the delays}
 
-The Chisel backannotator annotates the intermediate Chisel graph with delays obtained from Step {\bf (4)}.
+The delay backannotator annotates the intermediate Chisel graph with delays obtained from Step {\bf (4)}.
 
 {\bf (6) Calculates the critical path delay}
 
-In this step, the Chisel backannotator calculates the sum of the Chisel node delays in a timing paths. The critical path is a timing path which has the largest sum. The critical path delay can be used to verify the accuracy of the Chisel backannotator.
+In this step, the delay backannotator calculates the sum of Chisel node delays in a timing paths. The critical path is a timing path which has the largest sum. The critical path delay can be used to verify the accuracy of the delay backannotator.
 
 \subsection{Automatic Pipeline Register Placement}
 The automatic pipelining tool first creates a legal placement of pipeline registers based on the stage numbers of the user annotated nodes and then uses simulated annealing based on the delay data provided by the backannotation to find a close-to-optimal placement of the pipeline registers. 
@@ -135,7 +135,7 @@ This cooling policy forces the algorithm to try many bad solutions in the very e
 
 We use a starting temperature of 10000 and a cooling rate of 0.002. We terminate the algorithm when the temperature falls below 0.01 or if the iteration count exceeds 3000. We have found the critical path length has generally converged by those two limits in the designs we evaluated.
 
-The cost function used for our problem is the maximum combinational path length in the design and we obtain neighbor solutions from the current solution by moving Chisel nodes across pipeline boundaries in a way that mains a legal pipeline register placement
+The cost function used for our problem is the maximum combinational path length in the design and we obtain neighbor solutions from the current solution by moving Chisel nodes across pipeline boundaries in a way that maintains a legal pipeline register placement
 
 
 {\bf Generating Neighbor Solutions}.
@@ -143,7 +143,7 @@ The cost function used for our problem is the maximum combinational path length 
 We must maintain a legal pipeline register placement as we generate new pipeline register placements from the current pipeline register placement. To accomplish this, we look at the current pipeline register placement and choose eligible combinational logic nodes to move across pipeline stage boundaries. A combinational logic nodes is eligible if it meets the following condition:
 
 {\bf (1)} 
-The node is not an architectural register read point, architectural register write point, input node, or output node. We choose to not allow the automatic pipelining tool to move these nodes because doing so could have large unforeseen performance implications. For example, if we are pipelining a RISC processor, moving the write point of the PC register to later stages will cause branches to be resolved later in the pipeline and thus cause a larger branch mispredict penalty.
+The node is not an architectural register read point, architectural register write point, input node, or output node. We choose not to allow the automatic pipelining tool to move these nodes because doing so could have large unforeseen performance implications. For example, if we are pipelining a RISC processor, moving the write point of the PC register to later stages will cause branches to be resolved later in the pipeline and thus cause a larger branch mispredict penalty.
 
 And one of the following conditions:
 
